@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	defaultPodcastTTSTimeout     = 120 * time.Minute
+	defaultPodcastTTSTimeout     = 60 * time.Minute
 	defaultVoicevoxReadyTimeout  = 2 * time.Minute
 	defaultVoicevoxURL           = "http://localhost:50021"
 	defaultVoicevoxSpeakerID     = 3 // ずんだもん（ノーマル）
