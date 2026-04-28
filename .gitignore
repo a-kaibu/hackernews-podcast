@@ -1,0 +1,6 @@
+.gocache/
+.env
+output/
+*.wav
+hackernews-podcast
+hackernews-podcast.exe

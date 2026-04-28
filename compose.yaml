@@ -1,0 +1,16 @@
+services:
+  voicevox:
+    image: ghcr.io/voicevox/voicevox_engine:cpu-0.25.1
+    ports:
+      - "50021:50021"
+  podcast:
+    build: .
+    depends_on:
+      - voicevox
+    environment:
+      PODCAST_DATE: ${PODCAST_DATE:-}
+      PODCAST_OUTPUT_DIR: /output
+      VOICEVOX_FALLBACK_TAG: ${VOICEVOX_FALLBACK_TAG:-[ずんだもん][ノーマル]}
+      VOICEVOX_URL: http://voicevox:50021
+    volumes:
+      - ./output:/output
