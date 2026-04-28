@@ -4,6 +4,7 @@ const GITHUB_OWNER = "yashikota";
 const GITHUB_REPO = "hackernews-podcast";
 const BRANCH = "podcast-files";
 const PUBLIC_DIR = "public";
+const HACKERNEWS_JA_BASE_URL = "https://catnose.me/lab/hackernews-ja";
 
 interface GitHubTreeItem {
   path: string;
@@ -77,8 +78,10 @@ function createPlayerUI(episodes: PodcastEpisode[]): string {
   const episodeList = episodes
     .map(
       (ep, index) => `
-      <li class="episode-item ${index === 0 ? "active" : ""}" data-url="${ep.url}" data-index="${index}">
-        <span class="episode-date">${formatDate(ep.date)}</span>
+      <li class="episode-item ${index === 0 ? "active" : ""}" data-url="${ep.url}" data-date="${ep.date}" data-index="${index}">
+        <a href="${HACKERNEWS_JA_BASE_URL}/${ep.date}" target="_blank" class="episode-link" onclick="event.stopPropagation()">
+          <span class="episode-date">${formatDate(ep.date)}</span>
+        </a>
         <span class="episode-play-icon">▶</span>
       </li>
     `
@@ -87,14 +90,16 @@ function createPlayerUI(episodes: PodcastEpisode[]): string {
 
   return `
     <header class="header">
-      <h1>🎙️ Hacker News 日本語まとめ</h1>
+      <h1>🎙️ Hacker News 日本語Podcast</h1>
       <p class="subtitle">毎日のHacker Newsニュースを音声でお届け</p>
     </header>
 
     <main class="player-container">
       <div class="now-playing">
         <span class="now-playing-label">Now Playing</span>
-        <h2 class="current-episode-title">${formatDate(latestEpisode.date)}</h2>
+        <h2 class="current-episode-title">
+          <a href="${HACKERNEWS_JA_BASE_URL}/${latestEpisode.date}" target="_blank" class="current-episode-link" data-date="${latestEpisode.date}">${formatDate(latestEpisode.date)}</a>
+        </h2>
       </div>
 
       <audio id="audio-player" controls>
@@ -122,22 +127,68 @@ function createPlayerUI(episodes: PodcastEpisode[]): string {
   `;
 }
 
-function setupPlayer(): void {
+function getDateFromHash(): string | null {
+  const hash = window.location.hash.slice(1);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(hash)) {
+    return hash;
+  }
+  return null;
+}
+
+function setDateToHash(date: string): void {
+  window.history.pushState(null, "", `#${date}`);
+}
+
+function setupPlayer(episodes: PodcastEpisode[]): void {
   const audio = document.getElementById("audio-player") as HTMLAudioElement;
   const speedBtn = document.getElementById("speed-btn") as HTMLButtonElement;
   const skipBack = document.getElementById("skip-back") as HTMLButtonElement;
   const skipForward = document.getElementById("skip-forward") as HTMLButtonElement;
   const episodeItems = document.querySelectorAll(".episode-item");
-  const currentTitle = document.querySelector(".current-episode-title");
+  const currentTitleLink = document.querySelector(".current-episode-link") as HTMLAnchorElement;
 
   const speeds = [1, 1.25, 1.5, 1.75, 2];
   let speedIndex = 0;
+  let currentSpeed = speeds[speedIndex];
+
+  const selectEpisode = (date: string, autoPlay = false) => {
+    const episode = episodes.find((ep) => ep.date === date);
+    if (!episode) return;
+
+    episodeItems.forEach((ep) => {
+      ep.classList.toggle("active", ep.getAttribute("data-date") === date);
+    });
+
+    if (currentTitleLink) {
+      currentTitleLink.textContent = formatDate(date);
+      currentTitleLink.href = `${HACKERNEWS_JA_BASE_URL}/${date}`;
+      currentTitleLink.dataset.date = date;
+    }
+
+    setDateToHash(date);
+    audio.src = episode.url;
+    if (autoPlay) audio.play();
+  };
+
+  // Handle initial hash or default to latest
+  const initialDate = getDateFromHash();
+  if (initialDate && episodes.some((ep) => ep.date === initialDate)) {
+    selectEpisode(initialDate);
+  } else if (episodes.length > 0) {
+    setDateToHash(episodes[0].date);
+  }
+
+  // Handle browser back/forward
+  window.addEventListener("hashchange", () => {
+    const date = getDateFromHash();
+    if (date) selectEpisode(date);
+  });
 
   speedBtn.addEventListener("click", () => {
     speedIndex = (speedIndex + 1) % speeds.length;
-    const speed = speeds[speedIndex];
-    audio.playbackRate = speed;
-    speedBtn.textContent = `${speed}x`;
+    currentSpeed = speeds[speedIndex];
+    audio.playbackRate = currentSpeed;
+    speedBtn.textContent = `${currentSpeed}x`;
   });
 
   skipBack.addEventListener("click", () => {
@@ -148,21 +199,16 @@ function setupPlayer(): void {
     audio.currentTime = Math.min(audio.duration, audio.currentTime + 10);
   });
 
+  audio.addEventListener("loadedmetadata", () => {
+    audio.playbackRate = currentSpeed;
+  });
+
   episodeItems.forEach((item) => {
-    item.addEventListener("click", () => {
-      const url = item.getAttribute("data-url");
-      if (!url) return;
+    item.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).closest(".episode-link")) return;
 
-      episodeItems.forEach((ep) => ep.classList.remove("active"));
-      item.classList.add("active");
-
-      const dateText = item.querySelector(".episode-date")?.textContent || "";
-      if (currentTitle) {
-        currentTitle.textContent = dateText;
-      }
-
-      audio.src = url;
-      audio.play();
+      const date = item.getAttribute("data-date");
+      if (date) selectEpisode(date, true);
     });
   });
 }
@@ -180,7 +226,7 @@ async function init(): Promise<void> {
     const episodes = await fetchPodcastList();
     app.innerHTML = createPlayerUI(episodes);
     if (episodes.length > 0) {
-      setupPlayer();
+      setupPlayer(episodes);
     }
   } catch (error) {
     console.error("Failed to load podcasts:", error);

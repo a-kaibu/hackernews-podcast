@@ -118,6 +118,28 @@ body {
   margin: 8px 0 0;
 }
 
+.current-episode-link {
+  color: var(--text-h);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.current-episode-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.episode-link {
+  color: var(--text-h);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.episode-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 audio {
   width: 100%;
   height: 48px;
