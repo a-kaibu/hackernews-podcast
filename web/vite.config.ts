@@ -1,6 +1,6 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
-  base: "/",
+  base: "/hackernews-podcast/",
   lint: { options: { typeAware: true, typeCheck: true } },
 });
